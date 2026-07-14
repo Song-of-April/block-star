@@ -100,6 +100,38 @@ class GameEngineTest {
         assertEquals(null, result.state.pendingBlocks[2])
     }
 
+    @Test
+    fun addBlockReplacesRequestedSlotWhenAllSlotsAreFull() {
+        val engine = GameEngine()
+        val state = engine.newGame().copy(
+            pendingBlocks = listOf(
+                PendingBlock(ShapeGenerator.horizontal2, BlockColor.Red),
+                PendingBlock(ShapeGenerator.vertical2, BlockColor.Blue),
+                PendingBlock(ShapeGenerator.square2, BlockColor.Green)
+            ),
+            coins = ADD_TOOL_COST
+        )
+
+        val result = requireNotNull(
+            engine.addBlock(state, ShapeGenerator.single, replaceIndex = 0)
+        )
+
+        assertEquals(0, result.state.coins)
+        assertEquals(ShapeGenerator.single.id, result.state.pendingBlocks[0]?.shape?.id)
+        assertEquals(ShapeGenerator.vertical2.id, result.state.pendingBlocks[1]?.shape?.id)
+        assertEquals(ShapeGenerator.square2.id, result.state.pendingBlocks[2]?.shape?.id)
+    }
+
+    @Test
+    fun addToolCandidatesOnlyOffersSingleCellBlock() {
+        val engine = GameEngine()
+        val state = engine.newGame().copy(coins = ADD_TOOL_COST)
+
+        val candidates = engine.addToolCandidates(state)
+
+        assertEquals(listOf(ShapeGenerator.single), candidates)
+    }
+
     private fun hasAnyPlacement(engine: GameEngine, state: GameState, pendingIndex: Int): Boolean {
         return (0 until BOARD_SIZE).any { row ->
             (0 until BOARD_SIZE).any { col ->

@@ -116,7 +116,8 @@ private fun PendingBlockSlot(
         } else {
             BlockPreview(
                 block = block,
-                modifier = Modifier.matchParentSize()
+                modifier = Modifier.matchParentSize(),
+                normalizedGridSize = 5
             )
         }
     }

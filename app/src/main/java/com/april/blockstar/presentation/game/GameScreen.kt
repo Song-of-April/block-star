@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -103,19 +104,17 @@ private fun GameScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val hapticFeedback = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    val fingerOffsetPx = with(density) { 72.dp.toPx() }
 
+    var contentOriginInWindow by remember { mutableStateOf(Offset.Zero) }
     var boardLayout by remember { mutableStateOf<BoardLayoutInfo?>(null) }
     var dragState by remember { mutableStateOf<DragState?>(null) }
 
     fun updateDrag(index: Int, pointerPosition: Offset) {
         val block = uiState.pendingBlocks.getOrNull(index) ?: return
-        val anchor = pointerPosition - Offset(0f, fingerOffsetPx)
         val target = boardLayout?.let { layout ->
             resolveDragTarget(
-                anchorX = anchor.x,
-                anchorY = anchor.y,
+                anchorX = pointerPosition.x,
+                anchorY = pointerPosition.y,
                 boardLeft = layout.left,
                 boardTop = layout.top,
                 cellSize = layout.cellSize,
@@ -179,6 +178,9 @@ private fun GameScreenContent(
                     .padding(scaffoldPadding)
                     .padding(WindowInsets.safeDrawing.asPaddingValues())
                     .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .onGloballyPositioned { coordinates ->
+                        contentOriginInWindow = coordinates.positionInWindow()
+                    }
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
@@ -240,7 +242,7 @@ private fun GameScreenContent(
                                     cellSize = coordinates.size.width.toFloat() / BOARD_SIZE
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth(0.9f)
+                            modifier = Modifier.fillMaxWidth(0.96f)
                         )
 
                         PendingBlocksRow(
@@ -277,7 +279,7 @@ private fun GameScreenContent(
                     DragGhost(
                         dragState = dragState,
                         boardLayout = boardLayout,
-                        fingerOffsetPx = fingerOffsetPx
+                        contentOriginInWindow = contentOriginInWindow
                     )
 
                     PraiseText(
@@ -322,7 +324,7 @@ private fun DeleteModeBar(
 private fun DragGhost(
     dragState: DragState?,
     boardLayout: BoardLayoutInfo?,
-    fingerOffsetPx: Float
+    contentOriginInWindow: Offset
 ) {
     val density = LocalDensity.current
     if (dragState == null || boardLayout == null) return
@@ -330,8 +332,9 @@ private fun DragGhost(
     val cellSizeDp = with(density) { boardLayout.cellSize.toDp() }
     val width = cellSizeDp * dragState.block.shape.width
     val height = cellSizeDp * dragState.block.shape.height
-    val x = (dragState.pointerPosition.x - with(density) { width.toPx() } / 2f).roundToInt()
-    val y = (dragState.pointerPosition.y - fingerOffsetPx - with(density) { height.toPx() } / 2f).roundToInt()
+    val pointerInContent = dragState.pointerPosition - contentOriginInWindow
+    val x = (pointerInContent.x - with(density) { width.toPx() } / 2f).roundToInt()
+    val y = (pointerInContent.y - with(density) { height.toPx() } / 2f).roundToInt()
 
     Box(
         modifier = Modifier

@@ -185,7 +185,7 @@ class GameEngine(
     }
 
     fun addToolCandidates(state: GameState): List<BlockShape> {
-        return shapeGenerator.placeableShapes(state.board, ShapeGenerator.addToolShapes)
+        return shapeGenerator.placeableShapes(state.board, listOf(ShapeGenerator.single))
     }
 
     fun finishGame(state: GameState): SettlementResult {

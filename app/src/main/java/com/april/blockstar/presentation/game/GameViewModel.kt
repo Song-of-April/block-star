@@ -116,8 +116,6 @@ class GameViewModel(
         uiState = gameState.toUiState(
             selectedBlockIndex = null,
             activeDialog = dialogForState(gameState),
-            message = buildPlacementMessage(result.scoreAdded, result.coinsAdded),
-            messageId = ++messageCounter,
             praiseText = praiseText,
             praiseId = if (praiseText == null) uiState.praiseId else ++praiseCounter,
             vibrationEventId = nextVibrationEvent()
@@ -205,16 +203,20 @@ class GameViewModel(
             return
         }
 
-        val candidates = engine.addToolCandidates(gameState)
-        if (candidates.isEmpty()) {
+        val result = engine.addBlock(
+            state = gameState,
+            shape = ShapeGenerator.single,
+            replaceIndex = 0
+        )
+        if (result == null) {
             showMessage("当前棋盘没有可增加的形状")
             return
         }
 
-        uiState = uiState.copy(
-            activeDialog = GameDialog.AddShapePicker,
-            addCandidateShapes = candidates,
-            selectedAddShapeId = null
+        applyToolResult(
+            result = result,
+            message = "已增加 1 格 -$ADD_TOOL_COST",
+            closeToolMode = true
         )
     }
 

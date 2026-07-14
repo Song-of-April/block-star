@@ -47,13 +47,13 @@ fun GameBoard(
             .background(Color(0xFF55F2FF))
             .border(2.dp, Color(0xFF9DFFFF), RoundedCornerShape(8.dp))
             .padding(4.dp)
-            .onGloballyPositioned(onPositioned)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(5.dp))
-                .background(if (dimmed) Color(0xAA031C2D) else Color(0xFF052F47)),
+                .background(if (dimmed) Color(0xAA031C2D) else Color(0xFF052F47))
+                .onGloballyPositioned(onPositioned),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             repeat(BOARD_SIZE) { row ->
