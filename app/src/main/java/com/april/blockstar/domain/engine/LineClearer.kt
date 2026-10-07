@@ -5,7 +5,8 @@ import com.april.blockstar.domain.model.Board
 
 data class LineClearResult(
     val board: Board,
-    val clearedLineCount: Int
+    val clearedLineCount: Int,
+    val clearedCells: Set<Pair<Int, Int>> = emptySet()
 )
 
 data class FullLines(
@@ -45,7 +46,8 @@ object LineClearer {
 
         return LineClearResult(
             board = board.clearCells(cellsToClear),
-            clearedLineCount = fullLines.count
+            clearedLineCount = fullLines.count,
+            clearedCells = cellsToClear
         )
     }
 }

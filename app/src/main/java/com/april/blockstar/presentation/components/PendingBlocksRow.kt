@@ -35,8 +35,6 @@ import com.april.blockstar.domain.model.PendingBlock
 @Composable
 fun PendingBlocksRow(
     pendingBlocks: List<PendingBlock?>,
-    selectedBlockIndex: Int?,
-    onBlockClick: (Int) -> Unit,
     cellSize: Dp,
     modifier: Modifier = Modifier,
     draggingBlockIndex: Int? = null,
@@ -50,13 +48,11 @@ fun PendingBlocksRow(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         repeat(3) { index ->
             PendingBlockSlot(
                 block = pendingBlocks.getOrNull(index),
-                selected = selectedBlockIndex == index,
-                onClick = { onBlockClick(index) },
                 dragging = draggingBlockIndex == index,
                 onDragStart = { pointerPosition -> onDragStart(index, pointerPosition) },
                 onDragMove = onDragMove,
@@ -74,8 +70,6 @@ fun PendingBlocksRow(
 @Composable
 private fun PendingBlockSlot(
     block: PendingBlock?,
-    selected: Boolean,
-    onClick: () -> Unit,
     dragging: Boolean,
     onDragStart: (Offset) -> Unit,
     onDragMove: (Offset) -> Unit,
@@ -107,15 +101,11 @@ private fun PendingBlockSlot(
 
     Box(
         modifier = modifier
-            .height(cellSize * 5f)
+            .height(cellSize * 4.25f)
             .alpha(if (dragging) 0.25f else 1f)
-            .then(
-                if (selected) Modifier.border(1.dp, Color(0x88FFF06A)) else Modifier
-            )
             .onGloballyPositioned { coordinates ->
                 positionInWindow = coordinates.positionInWindow()
             }
-            .clickable(onClick = onClick)
             .then(dragModifier)
             .padding(4.dp),
         contentAlignment = Alignment.Center
@@ -123,8 +113,10 @@ private fun PendingBlockSlot(
         if (block != null) {
             BlockPreview(
                 block = block,
-                modifier = Modifier.requiredSize(cellSize * 5f),
-                normalizedGridSize = 5
+                modifier = Modifier.requiredSize(
+                    width = cellSize * block.shape.width.toFloat() * 0.85f,
+                    height = cellSize * block.shape.height.toFloat() * 0.85f
+                )
             )
             if (showBomb) {
                 Box(

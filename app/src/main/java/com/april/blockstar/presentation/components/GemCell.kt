@@ -1,7 +1,11 @@
 package com.april.blockstar.presentation.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -14,8 +18,17 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 @Composable
 fun GemCell(
     color: Color,
+    shineEventId: Long = 0L,
     modifier: Modifier = Modifier
 ) {
+    val shinePosition = remember { Animatable(-0.8f) }
+    LaunchedEffect(shineEventId) {
+        if (shineEventId > 0L) {
+            shinePosition.snapTo(-0.8f)
+            shinePosition.animateTo(1.8f, animationSpec = tween(durationMillis = 280))
+        }
+    }
+
     Canvas(modifier = modifier) {
         val radius = size.minDimension * 0.07f
         val edge = size.minDimension * 0.18f
@@ -75,7 +88,7 @@ fun GemCell(
 
         drawRoundRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.White.copy(alpha = 0.18f), Color.Transparent),
+                colors = listOf(Color.White.copy(alpha = 0.29f), Color.Transparent),
                 center = Offset(size.width * 0.42f, size.height * 0.38f),
                 radius = size.minDimension * 0.5f
             ),
@@ -83,6 +96,30 @@ fun GemCell(
             size = Size(size.width - edge * 2f, size.height - edge * 2f),
             cornerRadius = CornerRadius(radius * 0.45f, radius * 0.45f)
         )
+
+        // A small permanent specular highlight makes every block read as polished glass.
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color.White.copy(alpha = 0.82f), Color.White.copy(alpha = 0.12f), Color.Transparent),
+                center = Offset(size.width * 0.27f, size.height * 0.24f),
+                radius = size.minDimension * 0.24f
+            ),
+            radius = size.minDimension * 0.24f,
+            center = Offset(size.width * 0.27f, size.height * 0.24f)
+        )
+
+        if (shineEventId > 0L) {
+            val sweepX = size.width * shinePosition.value
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.92f), Color.White.copy(alpha = 0.25f), Color.Transparent),
+                    center = Offset(sweepX, size.height * 0.38f),
+                    radius = size.minDimension * 0.38f
+                ),
+                radius = size.minDimension * 0.38f,
+                center = Offset(sweepX, size.height * 0.38f)
+            )
+        }
         drawRoundRect(
             color = Color.White.copy(alpha = 0.38f),
             topLeft = Offset(inset, inset),

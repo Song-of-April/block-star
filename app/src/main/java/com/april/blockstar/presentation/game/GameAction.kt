@@ -8,6 +8,8 @@ sealed interface GameAction {
     data class SelectAddShape(val shapeId: String) : GameAction
     data class ReplacePendingBlock(val index: Int) : GameAction
     data class BombPendingBlock(val index: Int) : GameAction
+    data class RequestBombPendingBlock(val index: Int) : GameAction
+    data object ConfirmBombPendingBlock : GameAction
     data object RestartGame : GameAction
     data object PauseGame : GameAction
     data object ResumeGame : GameAction
@@ -17,10 +19,13 @@ sealed interface GameAction {
     data object RequestRefreshTool : GameAction
     data object ConfirmRefreshTool : GameAction
     data object RequestAddTool : GameAction
+    data object ConfirmAddTool : GameAction
     data object CancelDialog : GameAction
     data object EndCurrentGame : GameAction
     data object ToggleVibration : GameAction
     data object SaveNow : GameAction
     data object DismissMessage : GameAction
     data object DismissPraise : GameAction
+    data object DismissClearAnimation : GameAction
+    data object DismissPlacementShine : GameAction
 }

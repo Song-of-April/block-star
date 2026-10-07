@@ -28,6 +28,8 @@ class GameViewModel(
     private var gameState: GameState = GameState.empty()
     private var messageCounter = 0L
     private var praiseCounter = 0L
+    private var clearAnimationCounter = 0L
+    private var placementShineCounter = 0L
     private var vibrationCounter = 0L
 
     var uiState by mutableStateOf(GameUiState())
@@ -55,6 +57,8 @@ class GameViewModel(
             is GameAction.SelectAddShape -> selectAddShape(action.shapeId)
             is GameAction.ReplacePendingBlock -> replacePendingBlock(action.index)
             is GameAction.BombPendingBlock -> bombPendingBlock(action.index)
+            is GameAction.RequestBombPendingBlock -> requestBombPendingBlock(action.index)
+            GameAction.ConfirmBombPendingBlock -> confirmBombPendingBlock()
             GameAction.RestartGame -> restartGame()
             GameAction.PauseGame -> pauseGame()
             GameAction.ResumeGame -> resumeGame()
@@ -64,12 +68,15 @@ class GameViewModel(
             GameAction.RequestRefreshTool -> requestRefreshTool()
             GameAction.ConfirmRefreshTool -> confirmRefreshTool()
             GameAction.RequestAddTool -> requestAddTool()
+            GameAction.ConfirmAddTool -> confirmAddTool()
             GameAction.CancelDialog -> cancelDialog()
             GameAction.EndCurrentGame -> endCurrentGame()
             GameAction.ToggleVibration -> toggleVibration()
             GameAction.SaveNow -> persist()
             GameAction.DismissMessage -> uiState = uiState.copy(message = null)
             GameAction.DismissPraise -> uiState = uiState.copy(praiseText = null)
+            GameAction.DismissClearAnimation -> uiState = uiState.copy(clearAnimationCells = emptyMap())
+            GameAction.DismissPlacementShine -> uiState = uiState.copy(placementShineCells = emptySet())
         }
     }
 
@@ -92,7 +99,7 @@ class GameViewModel(
     private fun boardCellClick(row: Int, col: Int) {
         when (uiState.toolMode) {
             ToolMode.Delete -> deleteCell(row, col)
-            ToolMode.None -> placeSelectedBlock(row, col)
+            ToolMode.None -> Unit
         }
     }
 
@@ -121,6 +128,14 @@ class GameViewModel(
             activeDialog = dialogForState(gameState),
             praiseText = praiseText,
             praiseId = if (praiseText == null) uiState.praiseId else ++praiseCounter,
+            clearAnimationCells = result.clearedCells,
+            clearAnimationId = if (result.clearedCells.isEmpty()) {
+                uiState.clearAnimationId
+            } else {
+                ++clearAnimationCounter
+            },
+            placementShineCells = result.placedCells,
+            placementShineId = ++placementShineCounter,
             vibrationEventId = nextVibrationEvent()
         )
         persist()
@@ -128,23 +143,23 @@ class GameViewModel(
 
     private fun requestDeleteTool() {
         if (uiState.isLoading) return
-        if (gameState.deleteUses >= TOOL_USE_LIMIT) {
-            showMessage("本局删除道具已用完")
-            return
-        }
-        if (gameState.coins < DELETE_TOOL_COST) {
-            showMessage("金币不足，需要 $DELETE_TOOL_COST")
-            return
-        }
-        if (!gameState.board.hasOccupiedCells()) {
-            showMessage("棋盘上没有可删除的方块")
-            return
-        }
         uiState = uiState.copy(activeDialog = GameDialog.DeleteConfirm)
     }
 
     private fun confirmDeleteTool() {
         if (uiState.activeDialog != GameDialog.DeleteConfirm) return
+        if (gameState.deleteUses >= TOOL_USE_LIMIT) {
+            closeToolDialogWithMessage("本局删除道具已用完")
+            return
+        }
+        if (gameState.coins < DELETE_TOOL_COST) {
+            closeToolDialogWithMessage("金币不足，需要 $DELETE_TOOL_COST")
+            return
+        }
+        if (!gameState.board.hasOccupiedCells()) {
+            closeToolDialogWithMessage("棋盘上没有可删除的方块")
+            return
+        }
         uiState = uiState.copy(
             activeDialog = null,
             toolMode = ToolMode.Delete,
@@ -177,27 +192,26 @@ class GameViewModel(
 
     private fun requestRefreshTool() {
         if (uiState.isLoading) return
-        if (gameState.refreshUses >= TOOL_USE_LIMIT) {
-            showMessage("本局刷新道具已用完")
-            return
-        }
-        if (gameState.coins < REFRESH_TOOL_COST) {
-            showMessage("金币不足，需要 $REFRESH_TOOL_COST")
-            return
-        }
-        if (gameState.pendingBlocks.none { it != null }) {
-            showMessage("当前没有可刷新的方块")
-            return
-        }
         uiState = uiState.copy(activeDialog = GameDialog.RefreshConfirm)
     }
 
     private fun confirmRefreshTool() {
         if (uiState.activeDialog != GameDialog.RefreshConfirm) return
+        if (gameState.refreshUses >= TOOL_USE_LIMIT) {
+            closeToolDialogWithMessage("本局刷新道具已用完")
+            return
+        }
+        if (gameState.coins < REFRESH_TOOL_COST) {
+            closeToolDialogWithMessage("金币不足，需要 $REFRESH_TOOL_COST")
+            return
+        }
+        if (gameState.pendingBlocks.none { it != null }) {
+            closeToolDialogWithMessage("当前没有可刷新的方块")
+            return
+        }
         val result = engine.refreshRemainingBlocks(gameState)
         if (result == null) {
-            showMessage("当前棋盘没有可刷新的可放置形状")
-            uiState = uiState.copy(activeDialog = dialogForState(gameState))
+            closeToolDialogWithMessage("当前棋盘没有可刷新的可放置形状")
             return
         }
         applyToolResult(
@@ -209,22 +223,27 @@ class GameViewModel(
 
     private fun requestAddTool() {
         if (uiState.isLoading) return
+        uiState = uiState.copy(activeDialog = GameDialog.AddConfirm)
+    }
+
+    private fun confirmAddTool() {
+        if (uiState.activeDialog != GameDialog.AddConfirm) return
         if (gameState.addUses >= TOOL_USE_LIMIT) {
-            showMessage("本局增加道具已用完")
+            closeToolDialogWithMessage("本局增加道具已用完")
             return
         }
         if (gameState.coins < ADD_TOOL_COST) {
-            showMessage("金币不足，需要 $ADD_TOOL_COST")
+            closeToolDialogWithMessage("金币不足，需要 $ADD_TOOL_COST")
             return
         }
 
         if (gameState.pendingBlocks.none { it == null }) {
-            showMessage("先放置一个方块，空出位置后再增加")
+            closeToolDialogWithMessage("先放置一个方块，空出位置后再增加")
             return
         }
         val result = engine.addBlock(state = gameState, shape = ShapeGenerator.single)
         if (result == null) {
-            showMessage("当前棋盘没有可增加的形状")
+            closeToolDialogWithMessage("当前棋盘没有可增加的形状")
             return
         }
 
@@ -233,6 +252,28 @@ class GameViewModel(
             message = "已增加 1 格 -$ADD_TOOL_COST",
             closeToolMode = true
         )
+    }
+
+    private fun requestBombPendingBlock(index: Int) {
+        if (uiState.isLoading) return
+        if (gameState.pendingBlocks.getOrNull(index) == null || engine.canPlacePendingBlock(gameState, index)) {
+            showMessage("这个方块仍然可以放置")
+            return
+        }
+        uiState = uiState.copy(
+            activeDialog = GameDialog.BombConfirm,
+            pendingBombIndex = index
+        )
+    }
+
+    private fun confirmBombPendingBlock() {
+        if (uiState.activeDialog != GameDialog.BombConfirm) return
+        val index = uiState.pendingBombIndex ?: return
+        if (gameState.coins < BOMB_TOOL_COST) {
+            closeToolDialogWithMessage("金币不足，需要 $BOMB_TOOL_COST")
+            return
+        }
+        bombPendingBlock(index)
     }
 
     private fun bombPendingBlock(index: Int) {
@@ -311,7 +352,8 @@ class GameViewModel(
         uiState = uiState.copy(
             activeDialog = dialogForState(gameState),
             addCandidateShapes = emptyList(),
-            selectedAddShapeId = null
+            selectedAddShapeId = null,
+            pendingBombIndex = null
         )
     }
 
@@ -389,6 +431,14 @@ class GameViewModel(
         )
     }
 
+    private fun closeToolDialogWithMessage(message: String) {
+        uiState = uiState.copy(
+            activeDialog = dialogForState(gameState),
+            pendingBombIndex = null
+        )
+        showMessage(message)
+    }
+
     private fun persist() {
         if (uiState.isLoading) return
         viewModelScope.launch {
@@ -402,11 +452,16 @@ class GameViewModel(
         toolMode: ToolMode = ToolMode.None,
         addCandidateShapes: List<BlockShape> = emptyList(),
         selectedAddShapeId: String? = null,
+        pendingBombIndex: Int? = null,
         settlementAwardCoins: Int = uiState.settlementAwardCoins,
         message: String? = null,
         messageId: Long = uiState.messageId,
         praiseText: String? = null,
         praiseId: Long = uiState.praiseId,
+        clearAnimationCells: Map<Pair<Int, Int>, com.april.blockstar.domain.model.BlockColor> = emptyMap(),
+        clearAnimationId: Long = uiState.clearAnimationId,
+        placementShineCells: Set<Pair<Int, Int>> = emptySet(),
+        placementShineId: Long = uiState.placementShineId,
         vibrationEventId: Long = uiState.vibrationEventId
     ): GameUiState {
         return GameUiState(
@@ -422,12 +477,17 @@ class GameViewModel(
             toolMode = toolMode,
             addCandidateShapes = addCandidateShapes,
             selectedAddShapeId = selectedAddShapeId,
+            pendingBombIndex = pendingBombIndex,
             settlementAwardCoins = settlementAwardCoins,
             vibrationEnabled = vibrationEnabled,
             message = message,
             messageId = messageId,
             praiseText = praiseText,
             praiseId = praiseId,
+            clearAnimationCells = clearAnimationCells,
+            clearAnimationId = clearAnimationId,
+            placementShineCells = placementShineCells,
+            placementShineId = placementShineId,
             vibrationEventId = vibrationEventId,
             refreshUses = refreshUses,
             deleteUses = deleteUses,

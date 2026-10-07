@@ -7,6 +7,7 @@ import com.april.blockstar.domain.config.INITIAL_COINS
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
 import com.april.blockstar.domain.config.TOOL_USE_LIMIT
 import com.april.blockstar.domain.model.BlockShape
+import com.april.blockstar.domain.model.BlockColor
 import com.april.blockstar.domain.model.GameState
 import com.april.blockstar.domain.model.PendingBlock
 
@@ -14,7 +15,9 @@ data class PlacementResult(
     val state: GameState,
     val clearedLineCount: Int,
     val scoreAdded: Int,
-    val coinsAdded: Int
+    val coinsAdded: Int,
+    val placedCells: Set<Pair<Int, Int>>,
+    val clearedCells: Map<Pair<Int, Int>, BlockColor>
 )
 
 data class ToolUseResult(
@@ -74,6 +77,11 @@ class GameEngine(
 
         val placedBoard = state.board.place(block.shape, block.color, row, col)
         val clearResult = LineClearer.clearFullLines(placedBoard)
+        val placedCells = block.shape.cells
+            .mapTo(linkedSetOf()) { offset -> row + offset.row to col + offset.col }
+        val clearedCells = clearResult.clearedCells.associateWith { (clearRow, clearCol) ->
+            requireNotNull(placedBoard.colorAt(clearRow, clearCol))
+        }
         val scoreAdded = ScoreCalculator.scoreForPlacement(
             placedCellCount = block.shape.cellCount,
             clearedLineCount = clearResult.clearedLineCount
@@ -106,7 +114,9 @@ class GameEngine(
             ),
             clearedLineCount = clearResult.clearedLineCount,
             scoreAdded = scoreAdded,
-            coinsAdded = coinsAdded
+            coinsAdded = coinsAdded,
+            placedCells = placedCells,
+            clearedCells = clearedCells
         )
     }
 
@@ -141,9 +151,10 @@ class GameEngine(
         if (remainingIndexes.isEmpty()) return null
 
         if (shapeGenerator.placeableShapes(state.board, listOf(ShapeGenerator.single)).isEmpty()) return null
-        val replacements = List(remainingIndexes.size) {
-            shapeGenerator.randomBlock(listOf(ShapeGenerator.single))
-        }
+        val replacements = shapeGenerator.randomBlocks(
+            shapePool = listOf(ShapeGenerator.single),
+            count = remainingIndexes.size
+        )
 
         val nextPendingBlocks = state.pendingBlocks.toMutableList()
         remainingIndexes.forEachIndexed { replacementIndex, pendingIndex ->

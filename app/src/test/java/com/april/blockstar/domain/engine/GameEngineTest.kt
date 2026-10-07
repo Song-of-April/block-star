@@ -21,6 +21,28 @@ import org.junit.Test
 
 class GameEngineTest {
     @Test
+    fun eachGeneratedRoundUsesThreeDifferentColors() {
+        val blocks = ShapeGenerator().generateRound().filterNotNull()
+
+        assertEquals(3, blocks.size)
+        assertEquals(3, blocks.map { it.color }.distinct().size)
+    }
+
+    @Test
+    fun generatedRoundContainsAtMostOneLongBar() {
+        repeat(250) {
+            val longBars = ShapeGenerator().generateRound()
+                .filterNotNull()
+                .count { block ->
+                    block.shape.cellCount >= 4 &&
+                        (block.shape.width == 1 || block.shape.height == 1)
+                }
+
+            assertTrue(longBars <= 1)
+        }
+    }
+
+    @Test
     fun placingBlockClearsFullRowAndScoresOnce() {
         val engine = GameEngine()
         val board = boardWithOccupiedCells(
@@ -66,6 +88,7 @@ class GameEngineTest {
         val result = LineClearer.clearFullLines(board)
 
         assertEquals(2, result.clearedLineCount)
+        assertEquals(BOARD_SIZE * 2 - 1, result.clearedCells.size)
         assertFalse(result.board.cellAt(0, 0).isOccupied)
         assertFalse(result.board.cellAt(0, 5).isOccupied)
         assertFalse(result.board.cellAt(5, 0).isOccupied)

@@ -11,7 +11,16 @@ class ShapeGenerator(
     private val random: Random = Random.Default
 ) {
     fun generateRound(): List<PendingBlock?> {
-        return List(3) { randomGameBlock() }
+        val colors = BlockColor.entries.shuffled(random)
+        var hasLongBar = false
+        return List(3) { index ->
+            val shape = randomGameShape(allowLongBar = !hasLongBar)
+            if (shape.isLongBar()) hasLongBar = true
+            PendingBlock(
+                shape = shape,
+                color = colors[index]
+            )
+        }
     }
 
     fun randomBlock(shapePool: List<BlockShape>): PendingBlock {
@@ -22,11 +31,28 @@ class ShapeGenerator(
         )
     }
 
-    private fun randomGameBlock(): PendingBlock {
-        return PendingBlock(
-            shape = weightedFamilies.random(random).random(random),
-            color = BlockColor.entries.random(random)
-        )
+    fun randomBlocks(shapePool: List<BlockShape>, count: Int): List<PendingBlock> {
+        val pool = shapePool.ifEmpty { allShapes }
+        val colors = BlockColor.entries.shuffled(random)
+        return List(count) { index ->
+            PendingBlock(
+                shape = pool.random(random),
+                color = colors[index % colors.size]
+            )
+        }
+    }
+
+    private fun randomGameShape(allowLongBar: Boolean): BlockShape {
+        val families = if (allowLongBar) {
+            weightedFamilies
+        } else {
+            weightedFamilies.filterNot { family -> family.any { shape -> shape.isLongBar() } }
+        }
+        return families.random(random).random(random)
+    }
+
+    private fun BlockShape.isLongBar(): Boolean {
+        return cellCount >= 4 && (width == 1 || height == 1)
     }
 
     fun placeableShapes(board: Board, source: List<BlockShape> = allShapes): List<BlockShape> {
@@ -132,9 +158,10 @@ class ShapeGenerator(
             uFamily
         )
 
-        // Normal families have weight 2. The U family has weight 1, exactly half as often.
+        // Normal families have weight 3. The U family has weight 1, so it stays noticeably rarer.
         val weightedFamilies: List<List<BlockShape>> = buildList {
             shapeFamilies.dropLast(1).forEach { family ->
+                add(family)
                 add(family)
                 add(family)
             }

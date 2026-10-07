@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +46,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.april.blockstar.domain.config.ADD_TOOL_COST
 import com.april.blockstar.domain.config.BOARD_SIZE
+import com.april.blockstar.domain.config.BOMB_TOOL_COST
 import com.april.blockstar.domain.config.DELETE_TOOL_COST
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
 import com.april.blockstar.domain.config.TOOL_USE_LIMIT
@@ -157,6 +155,20 @@ private fun GameScreenContent(
         }
     }
 
+    LaunchedEffect(uiState.clearAnimationId) {
+        if (uiState.clearAnimationCells.isNotEmpty()) {
+            delay(220)
+            onAction(GameAction.DismissClearAnimation)
+        }
+    }
+
+    LaunchedEffect(uiState.placementShineId) {
+        if (uiState.placementShineCells.isNotEmpty()) {
+            delay(320)
+            onAction(GameAction.DismissPlacementShine)
+        }
+    }
+
     LaunchedEffect(uiState.vibrationEventId) {
         if (uiState.vibrationEventId > 0 && uiState.vibrationEnabled) {
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -215,10 +227,7 @@ private fun GameScreenContent(
                         ToolButtons(
                             onRefreshClick = { onAction(GameAction.RequestRefreshTool) },
                             onDeleteClick = { onAction(GameAction.RequestDeleteTool) },
-                            onAddClick = { onAction(GameAction.RequestAddTool) },
-                            refreshUsesLeft = TOOL_USE_LIMIT - uiState.refreshUses,
-                            deleteUsesLeft = TOOL_USE_LIMIT - uiState.deleteUses,
-                            addUsesLeft = TOOL_USE_LIMIT - uiState.addUses
+                            onAddClick = { onAction(GameAction.RequestAddTool) }
                         )
 
                         DeleteModeBar(
@@ -243,6 +252,10 @@ private fun GameScreenContent(
                             dimmed = uiState.isGameOver &&
                                 uiState.activeDialog == GameDialog.Deadlock &&
                                 uiState.toolMode == ToolMode.None,
+                            clearAnimationCells = uiState.clearAnimationCells,
+                            clearAnimationId = uiState.clearAnimationId,
+                            placementShineCells = uiState.placementShineCells,
+                            placementShineId = uiState.placementShineId,
                             onCellClick = { row, col ->
                                 onAction(GameAction.BoardCellClick(row, col))
                             },
@@ -259,14 +272,10 @@ private fun GameScreenContent(
 
                         PendingBlocksRow(
                             pendingBlocks = uiState.pendingBlocks,
-                            selectedBlockIndex = uiState.selectedBlockIndex,
                             cellSize = boardLayout?.let { layout ->
                                 with(density) { layout.cellSize.toDp() }
                             } ?: 30.dp,
                             draggingBlockIndex = dragState?.index,
-                            onBlockClick = { index ->
-                                onAction(GameAction.SelectPendingBlock(index))
-                            },
                             onDragStart = { index, pointerPosition ->
                                 updateDrag(index, pointerPosition)
                             },
@@ -289,7 +298,7 @@ private fun GameScreenContent(
                             },
                             unplaceableBlockIndexes = uiState.unplaceableBlockIndexes,
                             onBombClick = { index ->
-                                onAction(GameAction.BombPendingBlock(index))
+                                onAction(GameAction.RequestBombPendingBlock(index))
                             },
                             modifier = Modifier.fillMaxWidth(0.96f)
                         )
@@ -378,10 +387,7 @@ private fun PraiseText(
 ) {
     if (text == null) return
     Box(
-        modifier = modifier
-            .background(Color(0x99052A42), RoundedCornerShape(18.dp))
-            .border(2.dp, Color(0xFFFFE65A), RoundedCornerShape(18.dp))
-            .padding(horizontal = 22.dp, vertical = 9.dp),
+        modifier = modifier.padding(horizontal = 22.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -417,17 +423,33 @@ private fun ActiveDialog(
 
         GameDialog.DeleteConfirm -> ToolConfirmDialog(
             title = "删除方块",
-            message = "消耗 $DELETE_TOOL_COST 金币，随后点击棋盘上的一个已有方块。",
-            confirmText = "进入删除",
+            message = "作用：确认后点击棋盘上的一个宝石方块，将它清除。\n\n本局剩余：${(TOOL_USE_LIMIT - uiState.deleteUses).coerceAtLeast(0)} 次\n消耗金币：$DELETE_TOOL_COST",
+            confirmText = "确认使用",
             onConfirm = { onAction(GameAction.ConfirmDeleteTool) },
             onCancel = { onAction(GameAction.CancelDialog) }
         )
 
         GameDialog.RefreshConfirm -> ToolConfirmDialog(
             title = "刷新方块",
-            message = "消耗 $REFRESH_TOOL_COST 金币，刷新所有尚未放置的方块。",
-            confirmText = "刷新",
+            message = "作用：把下方尚未放置的候选方块全部变成单格。\n\n本局剩余：${(TOOL_USE_LIMIT - uiState.refreshUses).coerceAtLeast(0)} 次\n消耗金币：$REFRESH_TOOL_COST",
+            confirmText = "确认使用",
             onConfirm = { onAction(GameAction.ConfirmRefreshTool) },
+            onCancel = { onAction(GameAction.CancelDialog) }
+        )
+
+        GameDialog.AddConfirm -> ToolConfirmDialog(
+            title = "增加方块",
+            message = "作用：在空的候选位置增加一个单格方块。\n\n本局剩余：${(TOOL_USE_LIMIT - uiState.addUses).coerceAtLeast(0)} 次\n消耗金币：$ADD_TOOL_COST",
+            confirmText = "确认使用",
+            onConfirm = { onAction(GameAction.ConfirmAddTool) },
+            onCancel = { onAction(GameAction.CancelDialog) }
+        )
+
+        GameDialog.BombConfirm -> ToolConfirmDialog(
+            title = "炸掉候选方块",
+            message = "作用：移除这个已经无处可放的候选方块。\n\n本局使用限制：不限次数\n消耗金币：$BOMB_TOOL_COST",
+            confirmText = "确认使用",
+            onConfirm = { onAction(GameAction.ConfirmBombPendingBlock) },
             onCancel = { onAction(GameAction.CancelDialog) }
         )
 
@@ -452,7 +474,7 @@ private fun ActiveDialog(
             onAddClick = { onAction(GameAction.RequestAddTool) },
             onBombClick = {
                 uiState.unplaceableBlockIndexes.firstOrNull()?.let { index ->
-                    onAction(GameAction.BombPendingBlock(index))
+                    onAction(GameAction.RequestBombPendingBlock(index))
                 }
             },
             onEndClick = { onAction(GameAction.EndCurrentGame) }
