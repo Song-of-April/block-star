@@ -7,10 +7,12 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +29,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.april.blockstar.domain.model.PendingBlock
 
 @Composable
@@ -34,15 +37,19 @@ fun PendingBlocksRow(
     pendingBlocks: List<PendingBlock?>,
     selectedBlockIndex: Int?,
     onBlockClick: (Int) -> Unit,
+    cellSize: Dp,
     modifier: Modifier = Modifier,
     draggingBlockIndex: Int? = null,
     onDragStart: (index: Int, pointerPosition: Offset) -> Unit = { _, _ -> },
     onDragMove: (pointerPosition: Offset) -> Unit = {},
     onDragEnd: () -> Unit = {},
-    onDragCancel: () -> Unit = {}
+    onDragCancel: () -> Unit = {},
+    unplaceableBlockIndexes: Set<Int> = emptySet(),
+    onBombClick: (Int) -> Unit = {}
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         repeat(3) { index ->
@@ -55,6 +62,9 @@ fun PendingBlocksRow(
                 onDragMove = onDragMove,
                 onDragEnd = onDragEnd,
                 onDragCancel = onDragCancel,
+                showBomb = index in unplaceableBlockIndexes,
+                onBombClick = { onBombClick(index) },
+                cellSize = cellSize,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -71,9 +81,11 @@ private fun PendingBlockSlot(
     onDragMove: (Offset) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
+    showBomb: Boolean,
+    onBombClick: () -> Unit,
+    cellSize: Dp,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = if (selected) Color(0xFFFFC547) else Color(0xFF2D8BA8)
     var positionInWindow by remember { mutableStateOf(Offset.Zero) }
     val dragModifier = if (block == null) {
         Modifier
@@ -95,30 +107,38 @@ private fun PendingBlockSlot(
 
     Box(
         modifier = modifier
-            .aspectRatio(1.15f)
+            .height(cellSize * 5f)
             .alpha(if (dragging) 0.25f else 1f)
-            .border(2.dp, borderColor, RoundedCornerShape(8.dp))
-            .background(Color(0x3328BFEA), RoundedCornerShape(8.dp))
+            .then(
+                if (selected) Modifier.border(1.dp, Color(0x88FFF06A)) else Modifier
+            )
             .onGloballyPositioned { coordinates ->
                 positionInWindow = coordinates.positionInWindow()
             }
             .clickable(onClick = onClick)
             .then(dragModifier)
-            .padding(10.dp),
+            .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (block == null) {
-            Text(
-                text = "空",
-                color = Color(0x99FFFFFF),
-                fontWeight = FontWeight.Bold
-            )
-        } else {
+        if (block != null) {
             BlockPreview(
                 block = block,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.requiredSize(cellSize * 5f),
                 normalizedGridSize = 5
             )
+            if (showBomb) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(31.dp)
+                        .background(Color(0xFFE63832), CircleShape)
+                        .border(2.dp, Color.White, CircleShape)
+                        .clickable(onClick = onBombClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "💣", fontWeight = FontWeight.Black)
+                }
+            }
         }
     }
 }

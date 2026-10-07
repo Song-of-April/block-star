@@ -61,7 +61,10 @@ class GamePreferences(context: Context) {
                 isGameOver = preferences[Keys.IS_GAME_OVER] ?: false,
                 hasActiveGame = true,
                 settlementAwardClaimed = preferences[Keys.SETTLEMENT_AWARDED] ?: false,
-                vibrationEnabled = vibrationEnabled
+                vibrationEnabled = vibrationEnabled,
+                refreshUses = preferences[Keys.REFRESH_USES] ?: 0,
+                deleteUses = preferences[Keys.DELETE_USES] ?: 0,
+                addUses = preferences[Keys.ADD_USES] ?: 0
             )
         }.getOrNull()
 
@@ -84,6 +87,9 @@ class GamePreferences(context: Context) {
             preferences[Keys.HAS_ACTIVE_GAME] = state.hasActiveGame
             preferences[Keys.SETTLEMENT_AWARDED] = state.settlementAwardClaimed
             preferences[Keys.VIBRATION_ENABLED] = state.vibrationEnabled
+            preferences[Keys.REFRESH_USES] = state.refreshUses
+            preferences[Keys.DELETE_USES] = state.deleteUses
+            preferences[Keys.ADD_USES] = state.addUses
         }
     }
 
@@ -170,5 +176,8 @@ class GamePreferences(context: Context) {
         val HAS_ACTIVE_GAME = booleanPreferencesKey("has_active_game")
         val SETTLEMENT_AWARDED = booleanPreferencesKey("settlement_awarded")
         val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
+        val REFRESH_USES = intPreferencesKey("refresh_uses")
+        val DELETE_USES = intPreferencesKey("delete_uses")
+        val ADD_USES = intPreferencesKey("add_uses")
     }
 }

@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +51,7 @@ import com.april.blockstar.domain.config.ADD_TOOL_COST
 import com.april.blockstar.domain.config.BOARD_SIZE
 import com.april.blockstar.domain.config.DELETE_TOOL_COST
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
+import com.april.blockstar.domain.config.TOOL_USE_LIMIT
 import com.april.blockstar.domain.engine.ShapeGenerator
 import com.april.blockstar.domain.model.PendingBlock
 import com.april.blockstar.presentation.components.BlockPreview
@@ -104,6 +108,8 @@ private fun GameScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val hapticFeedback = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val fingerClearancePx = with(density) { 26.dp.toPx() }
 
     var contentOriginInWindow by remember { mutableStateOf(Offset.Zero) }
     var boardLayout by remember { mutableStateOf<BoardLayoutInfo?>(null) }
@@ -112,9 +118,12 @@ private fun GameScreenContent(
     fun updateDrag(index: Int, pointerPosition: Offset) {
         val block = uiState.pendingBlocks.getOrNull(index) ?: return
         val target = boardLayout?.let { layout ->
+            val liftedCenterY = pointerPosition.y -
+                layout.cellSize * block.shape.height / 2f -
+                fingerClearancePx
             resolveDragTarget(
                 anchorX = pointerPosition.x,
-                anchorY = pointerPosition.y,
+                anchorY = liftedCenterY,
                 boardLeft = layout.left,
                 boardTop = layout.top,
                 cellSize = layout.cellSize,
@@ -143,7 +152,7 @@ private fun GameScreenContent(
 
     LaunchedEffect(uiState.praiseId) {
         if (uiState.praiseText != null) {
-            delay(720)
+            delay(1_050)
             onAction(GameAction.DismissPraise)
         }
     }
@@ -191,7 +200,7 @@ private fun GameScreenContent(
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         ScoreHeader(
                             score = uiState.score,
@@ -206,7 +215,10 @@ private fun GameScreenContent(
                         ToolButtons(
                             onRefreshClick = { onAction(GameAction.RequestRefreshTool) },
                             onDeleteClick = { onAction(GameAction.RequestDeleteTool) },
-                            onAddClick = { onAction(GameAction.RequestAddTool) }
+                            onAddClick = { onAction(GameAction.RequestAddTool) },
+                            refreshUsesLeft = TOOL_USE_LIMIT - uiState.refreshUses,
+                            deleteUsesLeft = TOOL_USE_LIMIT - uiState.deleteUses,
+                            addUsesLeft = TOOL_USE_LIMIT - uiState.addUses
                         )
 
                         DeleteModeBar(
@@ -242,12 +254,15 @@ private fun GameScreenContent(
                                     cellSize = coordinates.size.width.toFloat() / BOARD_SIZE
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth(0.96f)
+                            modifier = Modifier.fillMaxWidth(0.965f)
                         )
 
                         PendingBlocksRow(
                             pendingBlocks = uiState.pendingBlocks,
                             selectedBlockIndex = uiState.selectedBlockIndex,
+                            cellSize = boardLayout?.let { layout ->
+                                with(density) { layout.cellSize.toDp() }
+                            } ?: 30.dp,
                             draggingBlockIndex = dragState?.index,
                             onBlockClick = { index ->
                                 onAction(GameAction.SelectPendingBlock(index))
@@ -272,7 +287,11 @@ private fun GameScreenContent(
                             onDragCancel = {
                                 dragState = null
                             },
-                            modifier = Modifier.fillMaxWidth(0.9f)
+                            unplaceableBlockIndexes = uiState.unplaceableBlockIndexes,
+                            onBombClick = { index ->
+                                onAction(GameAction.BombPendingBlock(index))
+                            },
+                            modifier = Modifier.fillMaxWidth(0.96f)
                         )
                     }
 
@@ -334,7 +353,11 @@ private fun DragGhost(
     val height = cellSizeDp * dragState.block.shape.height
     val pointerInContent = dragState.pointerPosition - contentOriginInWindow
     val x = (pointerInContent.x - with(density) { width.toPx() } / 2f).roundToInt()
-    val y = (pointerInContent.y - with(density) { height.toPx() } / 2f).roundToInt()
+    val y = (
+        pointerInContent.y -
+            with(density) { height.toPx() } -
+            with(density) { 26.dp.toPx() }
+        ).roundToInt()
 
     Box(
         modifier = Modifier
@@ -354,14 +377,29 @@ private fun PraiseText(
     modifier: Modifier = Modifier
 ) {
     if (text == null) return
-    Text(
-        text = text,
-        modifier = modifier,
-        color = Color(0xFFFFE45B),
-        style = MaterialTheme.typography.displayMedium,
-        fontWeight = FontWeight.Black,
-        textAlign = TextAlign.Center
-    )
+    Box(
+        modifier = modifier
+            .background(Color(0x99052A42), RoundedCornerShape(18.dp))
+            .border(2.dp, Color(0xFFFFE65A), RoundedCornerShape(18.dp))
+            .padding(horizontal = 22.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.offset(y = 3.dp),
+            color = Color(0xFFB83A00),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = text,
+            color = Color(0xFFFFDD38),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @Composable
@@ -412,6 +450,11 @@ private fun ActiveDialog(
             onDeleteClick = { onAction(GameAction.RequestDeleteTool) },
             onRefreshClick = { onAction(GameAction.RequestRefreshTool) },
             onAddClick = { onAction(GameAction.RequestAddTool) },
+            onBombClick = {
+                uiState.unplaceableBlockIndexes.firstOrNull()?.let { index ->
+                    onAction(GameAction.BombPendingBlock(index))
+                }
+            },
             onEndClick = { onAction(GameAction.EndCurrentGame) }
         )
 

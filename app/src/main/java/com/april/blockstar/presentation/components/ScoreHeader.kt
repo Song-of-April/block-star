@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,13 +31,14 @@ fun ScoreHeader(
     onPauseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier) {
+    Box(modifier = modifier.height(105.dp)) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .size(52.dp)
+                .size(50.dp)
+                .shadow(8.dp, CircleShape, ambientColor = Color.White, spotColor = Color(0xFF9B7BFF))
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFFC08BFF), Color(0xFF7447D7))))
+                .background(Brush.radialGradient(listOf(Color(0xFFE5C9FF), Color(0xFF9F5BE9), Color(0xFF5C2EBA))))
                 .clickable(onClick = onPauseClick),
             contentAlignment = Alignment.Center
         ) {
@@ -50,18 +54,29 @@ fun ScoreHeader(
             modifier = Modifier.align(Alignment.TopCenter),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = score.toString(),
-                style = MaterialTheme.typography.displayLarge,
-                color = Color(0xFFFFE073),
-                fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = score.toString(),
+                    modifier = Modifier.offset(y = 3.dp),
+                    style = MaterialTheme.typography.displayLarge,
+                    color = Color(0xFFD56A00),
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = score.toString(),
+                    style = MaterialTheme.typography.displayLarge,
+                    color = Color(0xFFFFD34D),
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+            }
             Text(
                 text = "最高分数：$highestScore",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.offset(y = (-2).dp)
             )
         }
 
@@ -73,8 +88,9 @@ fun ScoreHeader(
             Box(
                 modifier = Modifier
                     .size(30.dp)
+                    .shadow(5.dp, CircleShape, ambientColor = Color(0xFFFFE34F), spotColor = Color(0xFFFFA800))
                     .clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(Color(0xFFFFF690), Color(0xFFFFB300)))),
+                    .background(Brush.radialGradient(listOf(Color(0xFFFFFF9B), Color(0xFFFFC400), Color(0xFFFF8A00)))),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -86,7 +102,7 @@ fun ScoreHeader(
             }
             Text(
                 text = coins.toString(),
-                color = Color(0xFFFFE45B),
+                color = Color(0xFFFFD94D),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black
             )

@@ -8,8 +8,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.april.blockstar.data.GamePreferences
 import com.april.blockstar.domain.config.ADD_TOOL_COST
+import com.april.blockstar.domain.config.BOMB_TOOL_COST
 import com.april.blockstar.domain.config.DELETE_TOOL_COST
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
+import com.april.blockstar.domain.config.TOOL_USE_LIMIT
 import com.april.blockstar.domain.engine.GameEngine
 import com.april.blockstar.domain.engine.ShapeGenerator
 import com.april.blockstar.domain.engine.ToolUseResult
@@ -52,6 +54,7 @@ class GameViewModel(
             is GameAction.BoardCellClick -> boardCellClick(action.row, action.col)
             is GameAction.SelectAddShape -> selectAddShape(action.shapeId)
             is GameAction.ReplacePendingBlock -> replacePendingBlock(action.index)
+            is GameAction.BombPendingBlock -> bombPendingBlock(action.index)
             GameAction.RestartGame -> restartGame()
             GameAction.PauseGame -> pauseGame()
             GameAction.ResumeGame -> resumeGame()
@@ -125,6 +128,10 @@ class GameViewModel(
 
     private fun requestDeleteTool() {
         if (uiState.isLoading) return
+        if (gameState.deleteUses >= TOOL_USE_LIMIT) {
+            showMessage("本局删除道具已用完")
+            return
+        }
         if (gameState.coins < DELETE_TOOL_COST) {
             showMessage("金币不足，需要 $DELETE_TOOL_COST")
             return
@@ -170,6 +177,10 @@ class GameViewModel(
 
     private fun requestRefreshTool() {
         if (uiState.isLoading) return
+        if (gameState.refreshUses >= TOOL_USE_LIMIT) {
+            showMessage("本局刷新道具已用完")
+            return
+        }
         if (gameState.coins < REFRESH_TOOL_COST) {
             showMessage("金币不足，需要 $REFRESH_TOOL_COST")
             return
@@ -198,16 +209,20 @@ class GameViewModel(
 
     private fun requestAddTool() {
         if (uiState.isLoading) return
+        if (gameState.addUses >= TOOL_USE_LIMIT) {
+            showMessage("本局增加道具已用完")
+            return
+        }
         if (gameState.coins < ADD_TOOL_COST) {
             showMessage("金币不足，需要 $ADD_TOOL_COST")
             return
         }
 
-        val result = engine.addBlock(
-            state = gameState,
-            shape = ShapeGenerator.single,
-            replaceIndex = 0
-        )
+        if (gameState.pendingBlocks.none { it == null }) {
+            showMessage("先放置一个方块，空出位置后再增加")
+            return
+        }
+        val result = engine.addBlock(state = gameState, shape = ShapeGenerator.single)
         if (result == null) {
             showMessage("当前棋盘没有可增加的形状")
             return
@@ -216,6 +231,24 @@ class GameViewModel(
         applyToolResult(
             result = result,
             message = "已增加 1 格 -$ADD_TOOL_COST",
+            closeToolMode = true
+        )
+    }
+
+    private fun bombPendingBlock(index: Int) {
+        if (uiState.isLoading) return
+        if (gameState.coins < BOMB_TOOL_COST) {
+            showMessage("金币不足，需要 $BOMB_TOOL_COST")
+            return
+        }
+        val result = engine.bombPendingBlock(gameState, index)
+        if (result == null) {
+            showMessage("这个方块仍然可以放置")
+            return
+        }
+        applyToolResult(
+            result = result,
+            message = "已炸掉方块 -$BOMB_TOOL_COST",
             closeToolMode = true
         )
     }
@@ -337,7 +370,7 @@ class GameViewModel(
 
     private fun praiseForClearedLines(clearedLineCount: Int): String? {
         if (clearedLineCount < 2) return null
-        val words = listOf("好！", "赞！", "太棒了！")
+        val words = listOf("好", "棒", "酷")
         return words.random()
     }
 
@@ -395,7 +428,13 @@ class GameViewModel(
             messageId = messageId,
             praiseText = praiseText,
             praiseId = praiseId,
-            vibrationEventId = vibrationEventId
+            vibrationEventId = vibrationEventId,
+            refreshUses = refreshUses,
+            deleteUses = deleteUses,
+            addUses = addUses,
+            unplaceableBlockIndexes = pendingBlocks.mapIndexedNotNull { index, block ->
+                if (block != null && !engine.canPlacePendingBlock(this, index)) index else null
+            }.toSet()
         )
     }
 }

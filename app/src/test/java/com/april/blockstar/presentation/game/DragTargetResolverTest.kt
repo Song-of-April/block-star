@@ -34,4 +34,34 @@ class DragTargetResolverTest {
 
         assertNull(target)
     }
+
+    @Test
+    fun resolvesEvenWidthShapeWithoutOneCellDrift() {
+        val target = resolveDragTarget(
+            anchorX = 150f,
+            anchorY = 150f,
+            boardLeft = 0f,
+            boardTop = 0f,
+            cellSize = 30f,
+            shapeWidth = 2,
+            shapeHeight = 2
+        )
+
+        assertEquals(BoardTarget(row = 4, col = 4), target)
+    }
+
+    @Test
+    fun rejectsExactBottomRightBoundary() {
+        val target = resolveDragTarget(
+            anchorX = 300f,
+            anchorY = 300f,
+            boardLeft = 0f,
+            boardTop = 0f,
+            cellSize = 30f,
+            shapeWidth = 1,
+            shapeHeight = 1
+        )
+
+        assertNull(target)
+    }
 }

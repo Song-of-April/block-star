@@ -22,7 +22,7 @@ fun resolveDragTarget(
 
     val boardRight = boardLeft + cellSize * boardSize
     val boardBottom = boardTop + cellSize * boardSize
-    if (anchorX !in boardLeft..boardRight || anchorY !in boardTop..boardBottom) {
+    if (anchorX < boardLeft || anchorX >= boardRight || anchorY < boardTop || anchorY >= boardBottom) {
         return null
     }
 

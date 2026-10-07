@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -43,25 +44,26 @@ fun GameBoard(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF55F2FF))
-            .border(2.dp, Color(0xFF9DFFFF), RoundedCornerShape(8.dp))
-            .padding(4.dp)
+            .shadow(15.dp, RoundedCornerShape(7.dp), ambientColor = Color(0xFF4AFFFF), spotColor = Color(0xFF4AFFFF))
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color(0xFF50F7FF))
+            .border(2.dp, Color(0xFFC4FFFF), RoundedCornerShape(7.dp))
+            .padding(3.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(5.dp))
-                .background(if (dimmed) Color(0xAA031C2D) else Color(0xFF052F47))
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (dimmed) Color(0xCC021D2C) else Color(0xFF02364C))
                 .onGloballyPositioned(onPositioned),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            verticalArrangement = Arrangement.Top
         ) {
             repeat(BOARD_SIZE) { row ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                    horizontalArrangement = Arrangement.Start
                 ) {
                     repeat(BOARD_SIZE) { col ->
                         val color = board.colorAt(row, col)
@@ -71,13 +73,13 @@ fun GameBoard(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxSize()
-                                .background(Color(0xFF0A425E))
+                                .background(Color(0xFF053B50))
                                 .border(
                                     width = if (canDelete) 2.dp else 0.5.dp,
-                                    color = if (canDelete) Color(0xFFFFD76A) else Color(0x553EDCEB)
+                                    color = if (canDelete) Color(0xFFFFDE62) else Color(0x8852C9D8)
                                 )
                                 .clickable { onCellClick(row, col) }
-                                .padding(1.dp)
+                                .padding(0.45.dp)
                         ) {
                             if (color != null) {
                                 GemCell(

@@ -1,17 +1,11 @@
 package com.april.blockstar.domain.engine
 
 import com.april.blockstar.domain.config.ADD_TOOL_COST
-import com.april.blockstar.domain.config.COINS_AWARD_TIER_1
-import com.april.blockstar.domain.config.COINS_AWARD_TIER_2
-import com.april.blockstar.domain.config.COINS_AWARD_TIER_3
-import com.april.blockstar.domain.config.COINS_PER_CLEARED_LINE
+import com.april.blockstar.domain.config.BOMB_TOOL_COST
 import com.april.blockstar.domain.config.DELETE_TOOL_COST
 import com.april.blockstar.domain.config.INITIAL_COINS
-import com.april.blockstar.domain.config.MULTI_LINE_COIN_BONUS
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
-import com.april.blockstar.domain.config.SCORE_AWARD_TIER_1
-import com.april.blockstar.domain.config.SCORE_AWARD_TIER_2
-import com.april.blockstar.domain.config.SCORE_AWARD_TIER_3
+import com.april.blockstar.domain.config.TOOL_USE_LIMIT
 import com.april.blockstar.domain.model.BlockShape
 import com.april.blockstar.domain.model.GameState
 import com.april.blockstar.domain.model.PendingBlock
@@ -59,6 +53,9 @@ class GameEngine(
             pendingBlocks = pendingBlocks,
             highestScore = maxOf(state.highestScore, state.score),
             coins = state.coins.coerceAtLeast(0),
+            refreshUses = state.refreshUses.coerceIn(0, TOOL_USE_LIMIT),
+            deleteUses = state.deleteUses.coerceIn(0, TOOL_USE_LIMIT),
+            addUses = state.addUses.coerceIn(0, TOOL_USE_LIMIT),
             isGameOver = DeadlockDetector.isDeadlocked(state.board, pendingBlocks),
             hasActiveGame = true
         )
@@ -115,6 +112,7 @@ class GameEngine(
 
     fun deleteCell(state: GameState, row: Int, col: Int): ToolUseResult? {
         if (state.coins < DELETE_TOOL_COST) return null
+        if (state.deleteUses >= TOOL_USE_LIMIT) return null
         if (!state.board.isInside(row, col) || !state.board.cellAt(row, col).isOccupied) return null
 
         val boardAfterDelete = state.board.removeCell(row, col)
@@ -122,6 +120,7 @@ class GameEngine(
         val nextState = state.copy(
             board = clearResult.board,
             coins = (state.coins - DELETE_TOOL_COST).coerceAtLeast(0),
+            deleteUses = state.deleteUses + 1,
             isGameOver = DeadlockDetector.isDeadlocked(clearResult.board, state.pendingBlocks),
             hasActiveGame = true
         )
@@ -134,18 +133,17 @@ class GameEngine(
 
     fun refreshRemainingBlocks(state: GameState): ToolUseResult? {
         if (state.coins < REFRESH_TOOL_COST) return null
+        if (state.refreshUses >= TOOL_USE_LIMIT) return null
 
         val remainingIndexes = state.pendingBlocks.mapIndexedNotNull { index, block ->
             if (block != null) index else null
         }
         if (remainingIndexes.isEmpty()) return null
 
-        val replacements = shapeGenerator.generatePlaceableBlocks(
-            board = state.board,
-            count = remainingIndexes.size,
-            preferSimpleShapes = true
-        )
-        if (replacements.size != remainingIndexes.size) return null
+        if (shapeGenerator.placeableShapes(state.board, listOf(ShapeGenerator.single)).isEmpty()) return null
+        val replacements = List(remainingIndexes.size) {
+            shapeGenerator.randomBlock(listOf(ShapeGenerator.single))
+        }
 
         val nextPendingBlocks = state.pendingBlocks.toMutableList()
         remainingIndexes.forEachIndexed { replacementIndex, pendingIndex ->
@@ -155,6 +153,7 @@ class GameEngine(
         val nextState = state.copy(
             pendingBlocks = nextPendingBlocks.toList(),
             coins = (state.coins - REFRESH_TOOL_COST).coerceAtLeast(0),
+            refreshUses = state.refreshUses + 1,
             isGameOver = DeadlockDetector.isDeadlocked(state.board, nextPendingBlocks),
             hasActiveGame = true
         )
@@ -163,6 +162,7 @@ class GameEngine(
 
     fun addBlock(state: GameState, shape: BlockShape, replaceIndex: Int? = null): ToolUseResult? {
         if (state.coins < ADD_TOOL_COST) return null
+        if (state.addUses >= TOOL_USE_LIMIT) return null
         if (!shapeGenerator.placeableShapes(state.board, listOf(shape)).contains(shape)) return null
 
         val targetIndex = state.pendingBlocks.indexOfFirst { it == null }.takeIf { it >= 0 }
@@ -178,10 +178,33 @@ class GameEngine(
         val nextState = state.copy(
             pendingBlocks = nextPendingBlocks.toList(),
             coins = (state.coins - ADD_TOOL_COST).coerceAtLeast(0),
+            addUses = state.addUses + 1,
             isGameOver = DeadlockDetector.isDeadlocked(state.board, nextPendingBlocks),
             hasActiveGame = true
         )
         return ToolUseResult(state = nextState, coinsDelta = -ADD_TOOL_COST)
+    }
+
+    fun canPlacePendingBlock(state: GameState, pendingIndex: Int): Boolean {
+        val block = state.pendingBlocks.getOrNull(pendingIndex) ?: return false
+        return shapeGenerator.placeableShapes(state.board, listOf(block.shape)).isNotEmpty()
+    }
+
+    fun bombPendingBlock(state: GameState, pendingIndex: Int): ToolUseResult? {
+        if (state.coins < BOMB_TOOL_COST) return null
+        if (canPlacePendingBlock(state, pendingIndex)) return null
+        if (state.pendingBlocks.getOrNull(pendingIndex) == null) return null
+
+        val pending = normalizePendingSlots(state.pendingBlocks).toMutableList()
+        pending[pendingIndex] = null
+        val nextPending = if (pending.all { it == null }) shapeGenerator.generateRound() else pending.toList()
+        val nextState = state.copy(
+            pendingBlocks = nextPending,
+            coins = state.coins - BOMB_TOOL_COST,
+            isGameOver = DeadlockDetector.isDeadlocked(state.board, nextPending),
+            hasActiveGame = true
+        )
+        return ToolUseResult(state = nextState, coinsDelta = -BOMB_TOOL_COST)
     }
 
     fun addToolCandidates(state: GameState): List<BlockShape> {
@@ -209,17 +232,10 @@ class GameEngine(
     }
 
     private fun coinsForClearedLines(clearedLineCount: Int): Int {
-        if (clearedLineCount <= 0) return 0
-        return clearedLineCount * COINS_PER_CLEARED_LINE +
-            if (clearedLineCount >= 2) MULTI_LINE_COIN_BONUS else 0
+        return 0
     }
 
     private fun settlementAwardForScore(score: Int): Int {
-        return when {
-            score >= SCORE_AWARD_TIER_3 -> COINS_AWARD_TIER_3
-            score >= SCORE_AWARD_TIER_2 -> COINS_AWARD_TIER_2
-            score >= SCORE_AWARD_TIER_1 -> COINS_AWARD_TIER_1
-            else -> 0
-        }
+        return if (score <= 0) 0 else (score + 49) / 50
     }
 }

@@ -2,6 +2,7 @@ package com.april.blockstar.presentation.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -30,26 +32,32 @@ fun ToolButtons(
     onRefreshClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onAddClick: () -> Unit,
+    refreshUsesLeft: Int,
+    deleteUsesLeft: Int,
+    addUsesLeft: Int,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(46.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RoundToolButton(
-            text = "↻",
-            colors = listOf(Color(0xFF6EE7FF), Color(0xFF158FE2)),
+            text = "⟳",
+            colors = listOf(Color(0xFFA6F7FF), Color(0xFF19B7EF), Color(0xFF087BD3)),
+            usesLeft = refreshUsesLeft,
             onClick = onRefreshClick
         )
         RoundToolButton(
-            text = "⌫",
-            colors = listOf(Color(0xFFFFD65C), Color(0xFFFF8A18)),
+            text = "◆",
+            colors = listOf(Color(0xFFFFFFA3), Color(0xFFFFB622), Color(0xFFFF7214)),
+            usesLeft = deleteUsesLeft,
             onClick = onDeleteClick
         )
         RoundToolButton(
             text = "+",
-            colors = listOf(Color(0xFFFF8CCD), Color(0xFFE73D8D)),
+            colors = listOf(Color(0xFFFFC1E4), Color(0xFFFF5BAA), Color(0xFFD91B75)),
+            usesLeft = addUsesLeft,
             onClick = onAddClick
         )
     }
@@ -59,6 +67,7 @@ fun ToolButtons(
 private fun RoundToolButton(
     text: String,
     colors: List<Color>,
+    usesLeft: Int,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -78,8 +87,10 @@ private fun RoundToolButton(
                 shape = CircleShape
                 clip = true
             }
+            .shadow(9.dp, CircleShape, ambientColor = colors.first(), spotColor = colors.last())
             .clip(CircleShape)
-            .background(Brush.linearGradient(colors))
+            .background(Brush.radialGradient(colors))
+            .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -93,5 +104,21 @@ private fun RoundToolButton(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black
         )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(21.dp)
+                .clip(CircleShape)
+                .background(Color(0xDD062F4A))
+                .border(1.dp, Color.White, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = usesLeft.coerceAtLeast(0).toString(),
+                color = Color.White,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black
+            )
+        }
     }
 }

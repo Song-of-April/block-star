@@ -11,7 +11,10 @@ data class GameState(
     val isGameOver: Boolean,
     val hasActiveGame: Boolean = true,
     val settlementAwardClaimed: Boolean = false,
-    val vibrationEnabled: Boolean = true
+    val vibrationEnabled: Boolean = true,
+    val refreshUses: Int = 0,
+    val deleteUses: Int = 0,
+    val addUses: Int = 0
 ) {
     companion object {
         fun empty(
@@ -28,7 +31,10 @@ data class GameState(
                 isGameOver = false,
                 hasActiveGame = true,
                 settlementAwardClaimed = false,
-                vibrationEnabled = vibrationEnabled
+                vibrationEnabled = vibrationEnabled,
+                refreshUses = 0,
+                deleteUses = 0,
+                addUses = 0
             )
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.april.blockstar.domain.config.ADD_TOOL_COST
+import com.april.blockstar.domain.config.BOMB_TOOL_COST
 import com.april.blockstar.domain.config.DELETE_TOOL_COST
 import com.april.blockstar.domain.config.REFRESH_TOOL_COST
 
@@ -20,6 +21,7 @@ fun DeadlockDialog(
     onDeleteClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onAddClick: () -> Unit,
+    onBombClick: () -> Unit,
     onEndClick: () -> Unit
 ) {
     AlertDialog(
@@ -38,6 +40,9 @@ fun DeadlockDialog(
                 }
                 Button(onClick = onAddClick) {
                     Text(text = "增加  $ADD_TOOL_COST")
+                }
+                Button(onClick = onBombClick) {
+                    Text(text = "炸掉一个方块  $BOMB_TOOL_COST")
                 }
                 OutlinedButton(onClick = onEndClick) {
                     Text(text = "结束本局")

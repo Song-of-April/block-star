@@ -39,5 +39,9 @@ data class GameUiState(
     val messageId: Long = 0L,
     val praiseText: String? = null,
     val praiseId: Long = 0L,
-    val vibrationEventId: Long = 0L
+    val vibrationEventId: Long = 0L,
+    val refreshUses: Int = 0,
+    val deleteUses: Int = 0,
+    val addUses: Int = 0,
+    val unplaceableBlockIndexes: Set<Int> = emptySet()
 )

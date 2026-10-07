@@ -7,6 +7,7 @@ sealed interface GameAction {
     data class BoardCellClick(val row: Int, val col: Int) : GameAction
     data class SelectAddShape(val shapeId: String) : GameAction
     data class ReplacePendingBlock(val index: Int) : GameAction
+    data class BombPendingBlock(val index: Int) : GameAction
     data object RestartGame : GameAction
     data object PauseGame : GameAction
     data object ResumeGame : GameAction
